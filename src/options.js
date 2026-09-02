@@ -1,5 +1,7 @@
 const { createApp } = Vue
 
+let testAudio = null
+
 window.options = createApp({
     
     data () {
@@ -13,10 +15,18 @@ window.options = createApp({
     methods: {
         getSettings () {
             try {
-                this.settings = JSON.parse(localStorage.settings)
+                this.settings = Object.assign(this.copy(this.defaultSettings), JSON.parse(localStorage.settings))
             } catch (e) {
                 this.settings = this.copy(this.defaultSettings)
             }
+        },
+
+        // Play the notification sound so the user can test it.
+        testSound () {
+            testAudio = testAudio || new Audio('sounds/notification.mp3')
+            testAudio.currentTime = 0
+
+            testAudio.play().catch(() => {})
         },
 
         copy (object) {

@@ -370,7 +370,10 @@ window.app = createApp({
           previousSettings = localStorage.settings;
 
           try {
-            this.settings = JSON.parse(localStorage.settings);
+            this.settings = Object.assign(
+              this.copy(window.defaultSettings),
+              JSON.parse(localStorage.settings),
+            );
           } catch (e) {
             this.settings = this.copy(window.defaultSettings);
           }

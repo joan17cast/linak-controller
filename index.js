@@ -50,13 +50,15 @@ const openSettings = () => {
   });
 };
 
+const BOTTOM_MARGIN = 12;
+
 const centerBottom = () => {
   const { width, height } = win.getBounds();
   const { width: screenWidth, height: screenHeight } =
     screen.getPrimaryDisplay().workAreaSize;
 
   const x = Math.floor((screenWidth - width) / 2);
-  const y = screenHeight - height;
+  const y = screenHeight - height - BOTTOM_MARGIN;
 
   win.setPosition(x, y);
 };
