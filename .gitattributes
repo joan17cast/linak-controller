@@ -1,0 +1,20 @@
+# Normalize all text files to LF on checkout (cross-platform consistency)
+* text=auto eol=lf
+
+# Binary assets must never be touched by line-ending conversion
+*.png binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.mp3 binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.exe binary
+*.dll binary
+*.pak binary
+*.bin binary
+*.zip binary
