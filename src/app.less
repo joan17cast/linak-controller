@@ -26,6 +26,7 @@
   --text: #444;
   --text-faded: rgba(0, 0, 0, 0.4);
   --input: #fff;
+  --accent: #f39542;
 
   @media (prefers-color-scheme: dark) {
     --bg: #111;
@@ -44,6 +45,7 @@ body {
   padding: 2px;
   user-select: none;
   font-size: 16px;
+  font-family: "K2D", sans-serif;
 }
 
 // Slim, theme-aware scrollbars.
@@ -107,7 +109,7 @@ button {
   }
 
   &.active {
-    color: rebeccapurple;
+    color: var(--accent);
   }
 
   &.memory {
@@ -197,7 +199,7 @@ button {
       app-region: no-drag;
 
       &:hover {
-        background-color: #c00;
+        background-color: var(--accent);
         color: #fff;
       }
     }
@@ -232,7 +234,7 @@ button {
       border-radius: 4px;
 
       &:hover {
-        background-color: #c00;
+        background-color: var(--accent);
         color: #fff;
       }
     }
@@ -278,7 +280,7 @@ button {
           top: 1rem;
 
           &:hover {
-            background-color: #c00;
+            background-color: var(--accent);
             color: #fff;
           }
         }
@@ -311,9 +313,10 @@ button {
     border-radius: 4px;
     width: 100px !important;
     text-align: center;
+    accent-color: var(--accent);
 
     &:focus {
-      border-color: purple;
+      border-color: var(--accent);
     }
   }
 
@@ -350,7 +353,7 @@ button {
       }
 
       &.selected {
-        background-color: forestgreen;
+        background-color: var(--accent);
         color: #fff;
       }
     }
