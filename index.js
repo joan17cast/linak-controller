@@ -42,6 +42,11 @@ const openSettings = () => {
     height: 600,
     title: "Settings",
     icon: path.join(__dirname, "src/icons/LogoIdasenCtrl.ico"),
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
   });
 
   optionsWin.loadFile("src/options.html");
@@ -140,6 +145,28 @@ const createTray = () => {
 };
 
 ipcMain.on("show-window", () => showWindow());
+
+// In dev mode the executable is electron.exe, so the app directory is passed
+// as an argument so the app (not the default Electron demo) is launched.
+const loginItemArgs = app.isPackaged ? [] : [path.resolve()];
+
+ipcMain.handle(
+  "get-launch-at-login",
+  () => app.getLoginItemSettings({ args: loginItemArgs }).openAtLogin,
+);
+
+ipcMain.handle("set-launch-at-login", (event, value) => {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!value,
+      args: loginItemArgs,
+    });
+  } catch (e) {
+    // Launch-at-login is not supported on this platform (e.g. Linux).
+  }
+
+  return app.getLoginItemSettings({ args: loginItemArgs }).openAtLogin;
+});
 
 app.whenReady().then(() => {
   setTimeout(() => {

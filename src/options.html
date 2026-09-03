@@ -41,6 +41,20 @@
           </label>
         </div>
 
+        <div class="flex items-center justify-center mt-2">
+          <input
+            type="checkbox"
+            id="launch-at-login"
+            style="width: auto !important"
+            :checked="launchAtLogin"
+            @change="toggleLaunchAtLogin"
+          />
+
+          <label for="launch-at-login" class="whitespace-nowrap ml-2">
+            Launch at Startup
+          </label>
+        </div>
+
         <hr />
 
         <div class="text-center mb-2">
