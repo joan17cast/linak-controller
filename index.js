@@ -41,6 +41,7 @@ const openSettings = () => {
     width: 600,
     height: 600,
     title: "Settings",
+    frame: false,
     icon: path.join(__dirname, "src/icons/LogoIdasenCtrl.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -97,6 +98,15 @@ const createWindow = () => {
     devices?.length && cb(devices[0].deviceId);
   });
 
+  // The settings button must never spawn a framed popup window.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.includes("options.html")) {
+      openSettings();
+    }
+
+    return { action: "deny" };
+  });
+
   win.loadFile("src/index.html");
 
   win.once("ready-to-show", () => {
@@ -145,6 +155,8 @@ const createTray = () => {
 };
 
 ipcMain.on("show-window", () => showWindow());
+
+ipcMain.on("open-options", () => openSettings());
 
 // In dev mode the executable is electron.exe, so the app directory is passed
 // as an argument so the app (not the default Electron demo) is launched.

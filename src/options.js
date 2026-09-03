@@ -50,6 +50,11 @@ window.options = createApp({
       });
     },
 
+    // Close the frameless options window.
+    closeOptions() {
+      window.close();
+    },
+
     copy(object) {
       return JSON.parse(JSON.stringify(object));
     },

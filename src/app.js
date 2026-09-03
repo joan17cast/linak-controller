@@ -39,6 +39,11 @@ window.app = createApp({
     },
 
     showOptions() {
+      if (window.desktop?.openOptions) {
+        window.desktop.openOptions();
+        return;
+      }
+
       window.open("options.html", "_blank", "width=600px,height=600px");
     },
 

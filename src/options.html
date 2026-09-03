@@ -13,6 +13,14 @@
   </head>
   <body>
     <div id="options" v-cloak>
+      <div class="options-header">
+        <span class="title">LINAK CTRL &mdash; Options</span>
+
+        <a href class="close" title="Close" @click.prevent="closeOptions"
+          >&times;</a
+        >
+      </div>
+
       <template v-if="settings">
         <div class="flex items-center justify-center">
           <label class="whitespace-nowrap"> Prefered Units: </label>
