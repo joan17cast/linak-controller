@@ -18,7 +18,7 @@
       "icon": "icons/ikea-linak-ctrl.icns"
     },
     "win": {
-      "icon": "icons/ikea-linak-ctrl.ico"
+      "icon": "src/icons/LogoIdasenCtrl.ico"
     }
   }
 }

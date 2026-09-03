@@ -41,6 +41,7 @@ const openSettings = () => {
     width: 600,
     height: 600,
     title: "Settings",
+    icon: path.join(__dirname, "src/icons/LogoIdasenCtrl.ico"),
   });
 
   optionsWin.loadFile("src/options.html");
@@ -77,6 +78,7 @@ const createWindow = () => {
     resizable: false,
     hasShadow: false,
     show: false,
+    icon: path.join(__dirname, "src/icons/LogoIdasenCtrl.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

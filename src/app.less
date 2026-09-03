@@ -46,6 +46,31 @@ body {
   font-size: 16px;
 }
 
+// Slim, theme-aware scrollbars.
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--bg-hover);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+
+  &:hover {
+    background-color: var(--text-faded);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 #buttons {
   display: flex;
   align-items: center;
@@ -138,6 +163,45 @@ button {
 
 #options {
   padding: 0.5rem 1rem;
+
+  .options-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: -0.5rem -1rem 0.5rem;
+    padding: 0.6rem 0.75rem 0.6rem 1rem;
+    background-color: var(--bg);
+    border-bottom: 1px solid var(--bg-faded);
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faded);
+    -webkit-app-region: drag;
+    app-region: drag;
+
+    a.close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding-bottom: 2px;
+      font-size: 20px;
+      border-radius: 4px;
+      transition: all 0.2s;
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+
+      &:hover {
+        background-color: #c00;
+        color: #fff;
+      }
+    }
+  }
 
   .fields {
     margin: 0 calc(-1rem - 2px);
