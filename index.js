@@ -8,6 +8,55 @@ let win = null;
 let tray = null;
 let optionsWin = null;
 let isQuitting = false;
+let bluetoothCallback = null;
+let autoConnectTries = 0;
+
+const startAutoConnect = () => {
+  const attempt = async () => {
+    if (!win || win.isDestroyed() || autoConnectTries > 50) {
+      return;
+    }
+
+    autoConnectTries += 1;
+
+    try {
+      const ready = await win.webContents.executeJavaScript(
+        "!!(window.app && window.app.trySilentReconnect)",
+        false,
+      );
+
+      if (!ready) {
+        setTimeout(attempt, 100);
+        return;
+      }
+
+      // userGesture=true is required for requestDevice; mounted() has none.
+      await win.webContents.executeJavaScript(
+        "window.app.trySilentReconnect()",
+        true,
+      );
+    } catch (e) {
+      setTimeout(attempt, 100);
+    }
+  };
+
+  attempt();
+};
+
+const finishBluetoothSelect = (deviceId) => {
+  if (!bluetoothCallback) {
+    return;
+  }
+
+  const callback = bluetoothCallback;
+  bluetoothCallback = null;
+
+  try {
+    callback(deviceId);
+  } catch (e) {
+    // Calling the chooser callback twice crashes Electron; ignore repeats.
+  }
+};
 
 const showWindow = () => {
   if (!win) return;
@@ -92,10 +141,13 @@ const createWindow = () => {
     },
   });
 
-  win.webContents.on("select-bluetooth-device", (e, devices, cb) => {
-    e.preventDefault();
+  win.webContents.on("select-bluetooth-device", (event, devices, callback) => {
+    event.preventDefault();
+    bluetoothCallback = callback;
 
-    devices?.length && cb(devices[0].deviceId);
+    if (devices?.length) {
+      finishBluetoothSelect(devices[0].deviceId);
+    }
   });
 
   // The settings button must never spawn a framed popup window.
@@ -112,6 +164,7 @@ const createWindow = () => {
   win.once("ready-to-show", () => {
     centerBottom();
     win.show();
+    startAutoConnect();
   });
 
   win.on("close", (event) => {
@@ -157,6 +210,8 @@ const createTray = () => {
 ipcMain.on("show-window", () => showWindow());
 
 ipcMain.on("open-options", () => openSettings());
+
+ipcMain.on("cancel-bluetooth-scan", () => finishBluetoothSelect(""));
 
 // In dev mode the executable is electron.exe, so the app directory is passed
 // as an argument so the app (not the default Electron demo) is launched.

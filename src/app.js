@@ -1,5 +1,9 @@
 const { createApp } = Vue;
 
+const AUTO_SCAN_TIMEOUT_MS = 20000;
+const RECONNECT_BACKOFF_MS = [1000, 2000, 4000];
+const LAST_DEVICE_KEY = "lastBluetoothDeviceId";
+
 window.app = createApp({
   data() {
     return {
@@ -14,7 +18,13 @@ window.app = createApp({
       holdInterval: null,
       holding: false,
       reminder: null,
+      reminderSoundInterval: null,
       connected: false,
+      connecting: false,
+      disconnectHandler: null,
+      disconnectBoundDevice: null,
+      positionChar: null,
+      positionListener: null,
       device: null,
       handledSchedules: {},
       loading: false,
@@ -81,18 +91,188 @@ window.app = createApp({
       }
     },
 
-    async connect() {
-      this.loading = true;
+    sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    },
+
+    pickDesk(devices) {
+      if (!devices?.length) {
+        return null;
+      }
+
+      const lastId = localStorage.getItem(LAST_DEVICE_KEY);
+
+      if (lastId) {
+        const match = devices.find((device) => device.id === lastId);
+
+        if (match) {
+          return match;
+        }
+      }
+
+      const named = devices.find((device) =>
+        (device.name || "").startsWith(this.name),
+      );
+
+      if (named) {
+        return named;
+      }
+
+      return devices.length === 1 ? devices[0] : null;
+    },
+
+    rememberDevice(device) {
+      if (device?.id) {
+        localStorage.setItem(LAST_DEVICE_KEY, device.id);
+      }
+    },
+
+    watchDisconnect(device) {
+      if (this.disconnectBoundDevice && this.disconnectHandler) {
+        this.disconnectBoundDevice.removeEventListener(
+          "gattserverdisconnected",
+          this.disconnectHandler,
+        );
+      }
+
+      this.disconnectHandler = () => this.handleDisconnect();
+      this.disconnectBoundDevice = device;
+      device.addEventListener("gattserverdisconnected", this.disconnectHandler);
+    },
+
+    async handleDisconnect() {
       this.connected = false;
+      await this.tryReconnectKnownDevice();
+    },
+
+    failConnection() {
+      this.connected = false;
+      this.loading = false;
+    },
+
+    async tryReconnectKnownDevice() {
+      if (!this.device || this.connecting) {
+        if (!this.connecting) {
+          this.failConnection();
+        }
+
+        return;
+      }
+
+      this.connecting = true;
+      this.loading = true;
 
       try {
+        for (let i = 0; i < RECONNECT_BACKOFF_MS.length; i++) {
+          try {
+            await this.connectToDevice();
+            await this.onPositionChange();
+            return;
+          } catch (e) {
+            if (i < RECONNECT_BACKOFF_MS.length - 1) {
+              await this.sleep(RECONNECT_BACKOFF_MS[i]);
+            }
+          }
+        }
+
+        this.failConnection();
+      } finally {
+        this.connecting = false;
+
+        if (!this.connected) {
+          this.loading = false;
+        }
+      }
+    },
+
+    async tryGetDevicesReconnect() {
+      if (!navigator.bluetooth?.getDevices) {
+        return false;
+      }
+
+      const devices = await navigator.bluetooth.getDevices();
+      const device = this.pickDesk(devices);
+
+      if (!device) {
+        return false;
+      }
+
+      this.loading = true;
+      this.connecting = true;
+      this.device = device;
+      this.watchDisconnect(device);
+      await this.connectToDevice();
+      await this.onPositionChange();
+
+      return true;
+    },
+
+    async trySilentReconnect() {
+      if (this.connecting) {
+        return;
+      }
+
+      try {
+        if (await this.tryGetDevicesReconnect()) {
+          return;
+        }
+      } catch (e) {
+        this.connected = false;
+      } finally {
+        this.connecting = false;
+
+        if (!this.connected) {
+          this.loading = false;
+        }
+      }
+
+      if (this.connected) {
+        return;
+      }
+
+      // Electron has no Web Bluetooth permission store without a crashing
+      // Chromium flag. Scan like a click, but cancel if nothing appears.
+      await this.connect({ scanTimeoutMs: AUTO_SCAN_TIMEOUT_MS });
+    },
+
+    async connect(options = {}) {
+      if (this.connecting) {
+        return;
+      }
+
+      const scanTimeoutMs =
+        options && typeof options.scanTimeoutMs === "number"
+          ? options.scanTimeoutMs
+          : 0;
+
+      this.loading = true;
+      this.connected = false;
+      this.connecting = true;
+
+      let scanTimer = null;
+
+      try {
+        if (scanTimeoutMs) {
+          scanTimer = setTimeout(() => {
+            window.desktop?.cancelBluetoothScan?.();
+          }, scanTimeoutMs);
+        }
+
         await this.requestBluetoothAccess();
         await this.connectToDevice();
-
-        this.onPositionChange((pos) => (this.pos = pos));
+        await this.onPositionChange();
       } catch (e) {
-        this.loading = false;
         this.connected = false;
+      } finally {
+        if (scanTimer) {
+          clearTimeout(scanTimer);
+        }
+
+        this.connecting = false;
+
+        if (!this.connected) {
+          this.loading = false;
+        }
       }
     },
 
@@ -196,7 +376,29 @@ window.app = createApp({
       };
 
       this.playReminderSound();
+      this.startReminderSoundLoop();
       window.desktop?.showWindow();
+    },
+
+    // Repeat the notification sound every minute until the user picks an option.
+    startReminderSoundLoop() {
+      this.stopReminderSoundLoop();
+
+      this.reminderSoundInterval = setInterval(() => {
+        if (!this.reminder) {
+          this.stopReminderSoundLoop();
+          return;
+        }
+
+        this.playReminderSound();
+      }, 60e3);
+    },
+
+    stopReminderSoundLoop() {
+      if (this.reminderSoundInterval) {
+        clearInterval(this.reminderSoundInterval);
+        this.reminderSoundInterval = null;
+      }
     },
 
     acceptReminder() {
@@ -206,11 +408,13 @@ window.app = createApp({
 
       const targetMm = this.reminder.targetMm;
       this.reminder = null;
+      this.stopReminderSoundLoop();
       this.moveTo(targetMm);
     },
 
     dismissReminder() {
       this.reminder = null;
+      this.stopReminderSoundLoop();
     },
 
     async send(command) {
@@ -235,16 +439,16 @@ window.app = createApp({
         // acceptAllDevices: true,
       });
 
-      this.device.addEventListener("gattserverdisconnected", () =>
-        this.connect(),
-      );
+      this.watchDisconnect(this.device);
     },
 
     async connectToDevice() {
       this.server = await this.device.gatt.connect();
-      this.connected = true;
       this.service = await this.server.getPrimaryService(this.serviceId);
       this.pos = await this.getCurrentPosition();
+      this.rememberDevice(this.device);
+      this.connected = true;
+      this.loading = false;
     },
 
     async getCurrentPosition() {
@@ -257,17 +461,29 @@ window.app = createApp({
       return this.toCm(value.buffer);
     },
 
-    async onPositionChange(cb) {
+    async onPositionChange() {
       const service = await this.server.getPrimaryService(
         this.positionServiceId,
       );
       const char = await service.getCharacteristic(this.positionCharId);
 
-      await char.startNotifications();
+      if (this.positionChar && this.positionListener) {
+        this.positionChar.removeEventListener(
+          "characteristicvaluechanged",
+          this.positionListener,
+        );
+      }
 
-      char.addEventListener("characteristicvaluechanged", (e) => {
-        cb(this.toCm(e.target.value.buffer), e.timeStamp);
-      });
+      this.positionListener = (e) => {
+        this.pos = this.toCm(e.target.value.buffer);
+      };
+      this.positionChar = char;
+
+      await char.startNotifications();
+      char.addEventListener(
+        "characteristicvaluechanged",
+        this.positionListener,
+      );
     },
 
     b2n(buffer) {
@@ -439,6 +655,7 @@ window.app = createApp({
     connected(value) {
       if (!value) {
         this.reminder = null;
+        this.stopReminderSoundLoop();
       }
     },
 
