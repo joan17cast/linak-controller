@@ -34,6 +34,7 @@ window.app = createApp({
       server: null,
       service: null,
       settings: null,
+      hasAutoMinimized: false,
 
       commands: {
         UP: "4700",
@@ -583,21 +584,27 @@ window.app = createApp({
       });
     },
 
+    // Load the persisted settings, merging them over the defaults. Called
+    // synchronously on creation so features like "Minimize on Connect" are
+    // available before the first (silent) connection can fire the watcher.
+    getSettings() {
+      try {
+        this.settings = Object.assign(
+          this.copy(window.defaultSettings),
+          JSON.parse(localStorage.settings),
+        );
+      } catch (e) {
+        this.settings = this.copy(window.defaultSettings);
+      }
+    },
+
     watchSettings() {
-      let previousSettings = null;
+      let previousSettings = localStorage.settings;
 
       setInterval(() => {
         if (previousSettings !== localStorage.settings) {
           previousSettings = localStorage.settings;
-
-          try {
-            this.settings = Object.assign(
-              this.copy(window.defaultSettings),
-              JSON.parse(localStorage.settings),
-            );
-          } catch (e) {
-            this.settings = this.copy(window.defaultSettings);
-          }
+          this.getSettings();
         }
       }, 1e3);
     },
@@ -656,6 +663,13 @@ window.app = createApp({
       if (!value) {
         this.reminder = null;
         this.stopReminderSoundLoop();
+        return;
+      }
+
+      // Once the desk connects on launch, drop to the system tray if enabled.
+      if (this.settings?.minimizeOnConnect && !this.hasAutoMinimized) {
+        this.hasAutoMinimized = true;
+        window.desktop?.hideWindow();
       }
     },
 
@@ -702,7 +716,7 @@ window.app = createApp({
   },
 
   created() {
-    this.settings = this.copy(window.defaultSettings);
+    this.getSettings();
 
     this.watchSettings();
 

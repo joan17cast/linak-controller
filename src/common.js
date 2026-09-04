@@ -1,6 +1,7 @@
 window.defaultSettings = {
     units: 'cm',
     displayPos: true,
+    minimizeOnConnect: false,
     positions: [730, 1100],
     schedules: [
         {

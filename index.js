@@ -10,6 +10,9 @@ let optionsWin = null;
 let isQuitting = false;
 let bluetoothCallback = null;
 let autoConnectTries = 0;
+let lastDisplayId = null;
+let applyingBarLayout = false;
+let movedLayoutTimer = null;
 
 const startAutoConnect = () => {
   const attempt = async () => {
@@ -106,27 +109,84 @@ const openSettings = () => {
   });
 };
 
-const BOTTOM_MARGIN = 12;
+const BAR_WIDTH = 560;
+const BAR_HEIGHT = 56;
+const WINDOW_PAD = 2;
+const WINDOW_WIDTH = BAR_WIDTH + WINDOW_PAD * 2;
+const WINDOW_HEIGHT = BAR_HEIGHT + WINDOW_PAD * 2;
+const BOTTOM_MARGIN = 16;
 
-const centerBottom = () => {
-  const { width, height } = win.getBounds();
-  const { width: screenWidth, height: screenHeight } =
-    screen.getPrimaryDisplay().workAreaSize;
+const getBarDisplay = () => {
+  if (win && !win.isDestroyed()) {
+    return screen.getDisplayMatching(win.getBounds());
+  }
 
-  const x = Math.floor((screenWidth - width) / 2);
-  const y = screenHeight - height - BOTTOM_MARGIN;
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+};
 
-  win.setPosition(x, y);
+const getBarLayout = (display) => {
+  const { x, y, width: screenWidth, height: screenHeight } = display.workArea;
+
+  return {
+    width: WINDOW_WIDTH,
+    height: WINDOW_HEIGHT,
+    x: x + Math.floor((screenWidth - WINDOW_WIDTH) / 2),
+    y: y + screenHeight - WINDOW_HEIGHT - BOTTOM_MARGIN,
+    displayId: display.id,
+  };
+};
+
+const applyBarLayout = ({ recenter = true, display = null } = {}) => {
+  if (!win || win.isDestroyed()) {
+    return;
+  }
+
+  const layout = getBarLayout(display || getBarDisplay());
+  const current = win.getBounds();
+
+  applyingBarLayout = true;
+  win.setBounds({
+    x: recenter ? layout.x : current.x,
+    y: recenter ? layout.y : current.y,
+    width: layout.width,
+    height: layout.height,
+  });
+
+  if (!win.webContents.isDestroyed()) {
+    win.webContents.setZoomFactor(1);
+  }
+
+  lastDisplayId = layout.displayId;
+  applyingBarLayout = false;
+};
+
+const onBarMoved = () => {
+  if (applyingBarLayout || !win || win.isDestroyed()) {
+    return;
+  }
+
+  clearTimeout(movedLayoutTimer);
+  movedLayoutTimer = setTimeout(() => {
+    const display = getBarDisplay();
+
+    if (display.id === lastDisplayId) {
+      return;
+    }
+
+    applyBarLayout({ recenter: true });
+  }, 150);
 };
 
 const createWindow = () => {
+  const layout = getBarLayout(getBarDisplay());
+
   win = new BrowserWindow({
-    width: 560,
-    minWidth: 560,
-    maxWidth: 560,
-    height: 56,
-    minHeight: 56,
-    maxHeight: 56,
+    width: layout.width,
+    minWidth: layout.width,
+    maxWidth: layout.width,
+    height: layout.height,
+    minHeight: layout.height,
+    maxHeight: layout.height,
     frame: false,
     transparent: true,
     backgroundColor: "#00000000",
@@ -162,10 +222,15 @@ const createWindow = () => {
   win.loadFile("src/index.html");
 
   win.once("ready-to-show", () => {
-    centerBottom();
+    applyBarLayout({
+      recenter: true,
+      display: screen.getDisplayNearestPoint(screen.getCursorScreenPoint()),
+    });
     win.show();
     startAutoConnect();
   });
+
+  win.on("moved", onBarMoved);
 
   win.on("close", (event) => {
     if (!isQuitting) {
@@ -240,6 +305,16 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
   }, 100);
+
+  screen.on("display-metrics-changed", () => {
+    applyBarLayout({ recenter: true });
+  });
+  screen.on("display-added", () => {
+    applyBarLayout({ recenter: true });
+  });
+  screen.on("display-removed", () => {
+    applyBarLayout({ recenter: true });
+  });
 
   app.on("activate", () => {
     if (!win) {
