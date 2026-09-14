@@ -4,7 +4,8 @@
   "description": "Connects to an IKEA LINAK desk and allows for automating the toggling between seating and standing.",
   "main": "index.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --win --x64"
   },
   "author": "Cosmin Gheorghita (gecko.dev)",
   "license": "MIT",
@@ -14,11 +15,37 @@
   },
   "build": {
     "appId": "dev.gecko.linak",
+    "productName": "IKEA LINAK CTRL",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.js",
+      "preload.js",
+      "package.json",
+      "src/**/*",
+      "icons/**/*"
+    ],
+    "win": {
+      "icon": "src/icons/LogoIdasenCtrl.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
     "mac": {
       "icon": "icons/ikea-linak-ctrl.icns"
-    },
-    "win": {
-      "icon": "src/icons/LogoIdasenCtrl.ico"
     }
   }
 }
