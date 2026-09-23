@@ -1,6 +1,6 @@
 {
   "name": "IKEA_LINAK_CTRL",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Connects to an IKEA LINAK desk and allows for automating the toggling between seating and standing.",
   "main": "index.js",
   "scripts": {

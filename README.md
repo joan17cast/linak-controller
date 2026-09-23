@@ -6,7 +6,7 @@ It's possible to create schedules so that the desk switches to any position at s
 
 I've created this because I wanted to force myself to actually use the standing position, because I usually forget that I have this ability while working on something for many hours, and also I don't think it's great to use it all day long in a single position, either standing or sitting.
 
-![](https://i.imgur.com/JteX1FU.png)
+![](src/img/Ikea-Linak.png)
 
 ## Features
 
