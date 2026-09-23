@@ -326,39 +326,73 @@ window.app = createApp({
       return targetMm >= mid ? "stand" : "sit";
     },
 
+    // Play the reminder notification sound.
+    //
+    // NOTE: We deliberately do NOT route the audio through the Web Audio API
+    // (AudioContext / createMediaElementSource). Once an <audio> element is
+    // attached to a MediaElementSource its output is permanently routed
+    // through that context, and an AudioContext silently switches to the
+    // "suspended" state after periods of inactivity. Because reminders fire
+    // from a timer (no user gesture), resume() is rejected and the sound
+    // stops playing forever -- which is exactly the "works at first, then
+    // breaks after a while" symptom. Plain HTMLAudioElement playback keeps
+    // working thanks to sticky user activation, and we add a fallback below.
+    // Play the reminder notification sound.
+    //
+    // NOTE: We deliberately do NOT route the audio through the Web Audio API
+    // (AudioContext / createMediaElementSource). Once an <audio> element is
+    // attached to a MediaElementSource its output is permanently routed
+    // through that context, and an AudioContext silently switches to the
+    // "suspended" state after periods of inactivity. Because reminders fire
+    // from a timer (no user gesture), resume() is rejected and the sound
+    // stops playing forever -- which is exactly the "works at first, then
+    // breaks after a while" symptom. Plain HTMLAudioElement playback keeps
+    // working thanks to sticky user activation, and we add a fallback below.
     playReminderSound() {
       try {
         if (!this.reminderAudio) {
           this.reminderAudio = new Audio("sounds/notification.mp3");
           this.reminderAudio.volume = 1.0;
-
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-
-          if (AudioCtx) {
-            this.reminderAudioContext = new AudioCtx();
-            this.reminderAudioGain = this.reminderAudioContext.createGain();
-
-            const source = this.reminderAudioContext.createMediaElementSource(
-              this.reminderAudio,
-            );
-
-            source.connect(this.reminderAudioGain);
-            this.reminderAudioGain.connect(
-              this.reminderAudioContext.destination,
-            );
-          }
-        }
-
-        if (
-          this.reminderAudioContext &&
-          this.reminderAudioContext.state === "suspended"
-        ) {
-          this.reminderAudioContext.resume();
+          this.reminderAudio.preload = "auto";
         }
 
         this.reminderAudio.currentTime = 0;
 
         const playPromise = this.reminderAudio.play();
+
+        if (playPromise) {
+          playPromise.catch(() => this.fallbackReminderSound());
+        }
+      } catch (e) {
+        this.fallbackReminderSound();
+      }
+    },
+
+    // Last-resort fallback: the cached element can occasionally end up in a
+    // state where play() is rejected (e.g. a stalled media element after a
+    // long idle period). Spin up a fresh element so the reminder keeps
+    // working instead of going silent.
+    fallbackReminderSound() {
+      try {
+        const fallback = new Audio("sounds/notification.mp3");
+        fallback.volume = 1.0;
+        const playPromise = fallback.play();
+
+        if (playPromise) {
+          playPromise.catch(() => {});
+        }
+      } catch (e) {}
+    },
+
+    // Last-resort fallback: the cached element can occasionally end up in a
+    // state where play() is rejected (e.g. a stalled media element after a
+    // long idle period). Spin up a fresh element so the reminder keeps
+    // working instead of going silent.
+    fallbackReminderSound() {
+      try {
+        const fallback = new Audio("sounds/notification.mp3");
+        fallback.volume = 1.0;
+        const playPromise = fallback.play();
 
         if (playPromise) {
           playPromise.catch(() => {});

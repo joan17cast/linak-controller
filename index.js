@@ -4,6 +4,12 @@ const path = require("path");
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("enable-transparent-visuals");
 
+// Allow the reminder/notification sound to play without a fresh user gesture.
+// Without this, Chromium's autoplay policy can block audio triggered by a
+// timer (e.g. a scheduled reminder) after the app has been idle for a while,
+// which is exactly when the notification would otherwise go silent.
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+
 let win = null;
 let tray = null;
 let optionsWin = null;
